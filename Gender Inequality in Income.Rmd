@@ -1,0 +1,1323 @@
+---
+title: "Gender Inequality in Income"
+date: '12-14-2020'
+output: html_document
+---
+
+##### Package loading
+
+```{r}
+library(tidyverse)
+library(knitr)
+```
+
+
+##### Importing the data
+
+```{r}
+# Import starting data
+nlsy <- read_csv("http://www.andrew.cmu.edu/user/achoulde/94842/final_project/nlsy97/nlsy97_Nov2020.csv")
+```
+
+
+> In this project, we will examine factors that affect income gap between men and women from seven aspects: parents, education, employment, personalities, values, and marriage and children. For each aspect, we will select 1-2 variables. We rename these variables here: 'highest_degree', 'household_composition', 'industry', 'disorganized', 'trustful', 'help_less_fortunate', 'take_care_self', 'marital_status', and 'children_num'.
+
+```{r rename}
+colnames(nlsy) <- c("PSTRAN_GPA.01_PSTR",
+    "INCARC_TOTNUM_XRND",
+    "INCARC_AGE_FIRST_XRND",
+    "INCARC_LENGTH_LONGEST_XRND",
+    "PUBID_1997",
+    "YSCH-36400_1997",
+    "YSCH-37000_1997",
+    "YSAQ-010_1997",
+    "YSAQ-369_1997",
+    "YEXP-300_1997",
+    "YEXP-1500_1997",
+    "YEXP-1600_1997",
+    "YEXP-1800_1997",
+    "YEXP-2000_1997",
+    "sex",
+    "KEY_BDATE_M_1997",
+    "KEY_BDATE_Y_1997",
+    "PC8-090_1997",
+    "PC8-092_1997",
+    "PC9-002_1997",
+    "PC12-024_1997",
+    "PC12-028_1997",
+    "CV_AGE_12/31/96_1997",
+    "CV_BIO_MOM_AGE_CHILD1_1997",
+    "CV_BIO_MOM_AGE_YOUTH_1997",
+    "CV_CITIZENSHIP_1997",
+    "CV_ENROLLSTAT_1997",
+    "CV_HH_NET_WORTH_P_1997",
+    "household_composition",
+    "CV_MSA_AGE_12_1997",
+    "CV_URBAN-RURAL_AGE_12_1997",
+    "CV_SAMPLE_TYPE_1997",
+    "CV_HGC_BIO_DAD_1997",
+    "CV_HGC_BIO_MOM_1997",
+    "CV_HGC_RES_DAD_1997",
+    "CV_HGC_RES_MOM_1997",
+    "race",
+    "YSCH-6800_1998",
+    "YSCH-7300_1998",
+    "YSAQ-372B_1998",
+    "YSAQ-371_2000",
+    "disorganized",
+    "trustful",
+    "CV_HH_NET_WORTH_Y_2003",
+    "CV_BA_CREDITS.01_2004",
+    "YSAQ-000B_2004",
+    "YSAQ-373_2004",
+    "YSAQ-369_2005",
+    "CV_BIO_CHILD_HH_2007",
+    "help_less_fortunate",
+    "take_care_self",
+    "YTEL-52~000003_2007",
+    "YTEL-52~000004_2007",
+    "CV_BIO_CHILD_HH_2009",
+    "CV_COLLEGE_TYPE.01_2011",
+    "CV_INCOME_FAMILY_2011",
+    "CV_HH_SIZE_2011",
+    "CV_HH_UNDER_18_2011",
+    "CV_HH_UNDER_6_2011",
+    "highest_degree",
+    "CV_BIO_CHILD_HH_2011",
+    "YSCH-3112_2011",
+    "YSAQ-000A000001_2011",
+    "YSAQ-000A000002_2011",
+    "YSAQ-000B_2011",
+    "YSAQ-360C_2011",
+    "YSAQ-364D_2011",
+    "YSAQ-371_2011",
+    "YSAQ-372CC_2011",
+    "YSAQ-373_2011",
+    "YSAQ-374_2011",
+    "YEMP_INDCODE-2002.01_2011",
+    "children_num",
+    "industry",
+    "YEMP_OCCODE-2002.01_2017",
+    "marital_status",
+    "YINC-1400_2017",
+    "income",
+    "YINC-1800_2017",
+    "YINC-2400_2017",
+    "YINC-2600_2017",
+    "YINC-2700_2017",
+    "CVC_YTH_REL_HH_AGE6_YCHR_XRND",
+    "CVC_SAT_MATH_SCORE_2007_XRND",
+    "CVC_SAT_VERBAL_SCORE_2007_XRND",
+    "CVC_ACT_SCORE_2007_XRND",
+    "CVC_HH_NET_WORTH_20_XRND",
+    "CVC_HH_NET_WORTH_25_XRND",
+    "CVC_ASSETS_FINANCIAL_25_XRND",
+    "CVC_ASSETS_DEBTS_20_XRND",
+    "CVC_HH_NET_WORTH_30_XRND",
+    "CVC_HOUSE_VALUE_30_XRND",
+    "CVC_HOUSE_TYPE_30_XRND",
+    "CVC_ASSETS_FINANCIAL_30_XRND",
+    "CVC_ASSETS_DEBTS_30_XRND")
+
+### Since all the negative values in the interested variables are NA, we set all negative values to NA.  
+nlsy[nlsy < 0]  <- NA
+```
+
+
+```{r}
+summary(nlsy$income)
+
+# Histogram
+qplot(nlsy$income)
+
+n.topcoded <- with(nlsy, sum(income == max(income, na.rm = TRUE), na.rm = TRUE))
+n.topcoded
+```
+
+`r n.topcoded` of the incomes are topcoded to the maximum value of `r max(nlsy$income, na.rm = TRUE)`, which is the average value of the top `r n.topcoded` earners.   
+
+
+## Part I: Descriptive Statistics
+
+
+### a. Pre-processing the data
+
+
+> Recode variables `sex`, `highest_degree`, `marital_status` and `household composition`. Filter out missing values and zero values in `income`.
+
+```{r recoding}
+nlsy <- nlsy %>%
+  mutate(sex = recode_factor(sex,
+                                `2` = "Female",
+                                `1` = "Male")) %>%
+  filter(!is.na(income)) %>% 
+  filter(income != 0)
+
+
+nlsy <- nlsy %>% mutate(highest_degree = recode(highest_degree, 
+                                                     "0" = "None", "1" = "GED", 
+                                                     "2" = "High School", 
+                                                     "3" = "Associate/Junior", 
+                                                     "4" = "Bachelor's", 
+                                                     "5" = "Master's", 
+                                                     "6" = "PhD", 
+                                                     "7" = "Professional"))
+nlsy <- nlsy %>% 
+  mutate(highest_degree = factor(highest_degree, 
+                                 levels = c("None", "GED", "High School", 
+                                            "Associate/Junior", 
+                                            "Bachelor's", 
+                                            "Master's", 
+                                            "PhD", 
+                                            "Professional")))
+
+nlsy <- nlsy %>% mutate(marital_status = recode(marital_status, 
+                                                "0" = "Never-married", 
+                                                "1" = "Married", 
+                                                "2" = "Separated", 
+                                                "3" = "Divorced", 
+                                                "4" = "Widowed"))
+
+nlsy <- nlsy %>% 
+  mutate(marital_status = factor(marital_status, 
+                                 levels = c("Never-married", "Married", "Separated", 
+                                            "Divorced", "Widowed"))) 
+
+nlsy <- nlsy %>% 
+  mutate(household_composition = 
+           recode_factor(household_composition,
+                         `1` = "Both biological parents",
+                         `2` = "Two parents, biological mother",
+                         `3` = "Two parents, biological father",
+                         `4` = "Biological mother only",
+                         `5` = "Biological father only",
+                         `6` = "Adoptive parent(s)",
+                         `7` = "Foster parent(s)",
+                         `8` = "No parents, grandparents",
+                         `9` = "No parents, other relatives",
+                         `10` = "Anything else"))
+```
+
+
+
+> Use t-test to identify whether there is a significant difference in income between males and females. 
+
+```{r income gap between males and females}
+t.test(income ~ sex, data = nlsy)
+```
+
+> There is a statistically significant income gap between males and females because the p-value is much lower than `r 1 - attr(t.test(income ~ sex, data = nlsy)$conf.int, "conf.level")`. In this report, we're going to research how other factors affect the income gap. 
+
+
+
+### b. Education Level
+
+
+> To indentify whether income will vary with different degrees, we produce a boxplot to see the minimal income, maximum income, average income, and quatiles for different degrees. We also filter out missing values in `income` and `highest_degree` to prevent producing a boxplot of "NA" group.
+
+```{r income varies with different degress}
+nlsy.copy1 <- nlsy %>% filter(is.na(income) == FALSE, 
+                              is.na(highest_degree) == FALSE)
+ggplot(data = nlsy.copy1, aes(x = highest_degree, y = income)) + geom_boxplot() + 
+  theme(axis.text.x = element_text(angle = - 90, vjust = 0.5)) + 
+  ggtitle("Income varies with different degrees")
+```
+
+> As we can see from the box plot above, althought there are outliers, generally speaking, minimal income, average income and max income will increase as respondents' education level increases. Next, we will investigate whether there is income inequality between men and women across different degrees. 
+
+
+
+> First, produce a bar chart with error bars (confidence intervals) to see the distribution of education levels of men and women. 
+
+```{r proportion of people in different degrees, be sex}
+highest_degree.table <- table(sex = nlsy$sex, highest_degree = nlsy$highest_degree)
+highest_degree.df.count <- as_tibble(highest_degree.table)
+highest_degree.df.count <- highest_degree.df.count %>% 
+  group_by(sex) %>% 
+  mutate(totals = sum(n))
+
+highest_degree.toplot <- highest_degree.df.count %>% 
+  group_by(highest_degree, sex) %>% 
+  summarize(prop = n/totals,
+            lower = prop.test(n, totals)$conf.int[1],
+            upper = prop.test(n, totals)$conf.int[2])
+
+kable(highest_degree.toplot, format = "markdown")
+
+degree_plot <- ggplot(highest_degree.toplot, aes(x = highest_degree, y = prop, fill = sex)) +
+  geom_bar(position = 'dodge', stat = 'identity') +
+  theme(axis.text.x = element_text(angle = - 90, vjust = 0.5)) + 
+  geom_errorbar(aes(ymin = lower, ymax = upper),
+                width = .2,
+                position = position_dodge(0.9)) + 
+  ggtitle("Proportion of people in different degrees, by sex")
+
+degree_plot + scale_x_discrete(limits = c("None", "GED", "High School", 
+                                                 "Associate/Junior", 
+                                                 "Bachelor's", 
+                                                 "Master's", 
+                                                 "PhD", 
+                                                 "Professional"))
+```
+
+> The bar chart indicates that the proportions of women who have degrees higher than high school degree are all higher than men. And this proportion difference is statistically significant for bachalor's degree and master's degree. 
+
+
+
+> Construct a modified t-test function that operates in the following way (CI below stands for "confidence interval"):
+
+1. Input: 2 inputs
+    - `x`: numeric vector
+    - `group`: 2-level factor vector of the same length as `x`
+    - `k`: integer, giving minimum group size
+    - `flip.sign`: logical.  Should CI and mean be flipped?
+
+2. Output: a vector with the following elements:
+    - `lower`: the lower value of the error bar (CI)
+    - `upper`: the upper value of the error bar (CI)
+    - `is.signif`: for groups of size >= `k`, this value should be 0 if CI overlaps 0, and 1 if it doesn't.  For groups of size < `k`, this value should always be 0.
+
+- If `group` has at least `k` observations in each level, return the lower and upper confidence interval values from running `t.test` with formula `x ~ group`.
+- If `group` has fewer than `k` observations in one or both levels of this factor, `lower` and `upper` should both be set equal to the mean difference.
+- If `flip.sign` = TRUE, the difference and confidence interval should be calculate as group2 - group1 instead of group1 - group2.  
+
+```{r modified t test}
+betterTTestErrorBars <- function(x, group, k = 5, flip.sign = TRUE) {
+  if (length(x) >= k) {
+    lower = -t.test(x ~ group)$conf.int[1]
+    upper = -t.test(x ~ group)$conf.int[2]
+    is.signif = as.numeric(t.test(x ~ group)$p.value < 0.05)
+  } else if (length(x) < k) {
+    lower = mean(x[1]) - mean(x[2])
+    upper = mean(x[1]) - mean(x[2])
+    is.signif = 0 
+  }
+  c(lower, upper, is.signif)
+}
+```
+
+
+
+
+> Produce a bar chart with error bars (confidence intervals) to identity whether there is income inequality between men and women across different degrees. In other words, we'd like to examine whether income gap between men and women varies across different education levels. 
+
+```{r income gap between men and women, by education}
+education.income.gap <- nlsy %>% 
+  filter(is.na(highest_degree) == FALSE) %>% 
+  group_by(highest_degree) %>%
+  summarize(income.gap = mean(income[sex == "Male"], na.rm = TRUE) -
+              mean(income[sex == "Female"], na.rm = TRUE), 
+            lower = betterTTestErrorBars(income, sex)[2],
+            upper = betterTTestErrorBars(income, sex)[1],
+            is.significant = betterTTestErrorBars(income, sex)[3]) 
+
+
+education.income.gap <- education.income.gap %>% 
+  mutate(is.significant = recode_factor(is.significant, 
+                                        "1" = "Yes", 
+                                        "0" = "No"))
+
+kable(education.income.gap, format = "markdown")
+         
+ggplot(education.income.gap, 
+       aes(x = highest_degree, y = income.gap, fill = is.significant)) + 
+  geom_bar(stat = "identity") +xlab("Education level") + 
+  ylab("Income gap($)") +
+  ggtitle("Income gap between men and women, by education") + 
+  guides() +
+  geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1) +
+  theme(text = element_text(size=12)) + 
+  theme(axis.text.x = element_text(angle = - 90, vjust = 0.5))
+```
+
+> Combined with the previous two pictures, we can conclude that, income increases as education level increases, for both females and males. However, except for PhD and professional degrees, there is statistically significant income inequality between men and women. Besides, although there is no clear trend showing how income gaps increases or decreases as education level increases, education level may be one of the factors affecting income gap as it varies with different degrees. Especially, the income gap among respondents with Bachelor's degree is bigger than High school degree or Associate/Junior degree.
+
+
+
+
+### c. Marital Status
+
+
+> Produce a bar chart with error bars to see the distribution of high-income people between men and women across different marital status. (We select never-married as baseline group). Filter out missing values in `income` and `marital_status` to prevent producing a boxplot of "NA" group.
+
+```{r proportion of high income, by sex and marital status}
+nlsy.copy2 <- nlsy %>% filter(is.na(income) == FALSE, 
+                              is.na(marital_status) == FALSE)
+
+marriage.prop.income <- nlsy.copy2 %>% 
+  group_by(marital_status, sex) %>%
+  summarize(total = n(), high_income = sum(income > 50000), 
+            prop = high_income / total, 
+            lower = prop.test(high_income, total)$conf.int[1],
+            upper = prop.test(high_income, total)$conf.int[2])
+
+kable(marriage.prop.income, markdown = "markdown")
+
+ggplot(marriage.prop.income, aes(x = marital_status, y = prop, fill = sex)) + 
+  geom_bar(position="dodge", stat="identity") +
+  geom_errorbar(aes(ymin = lower, ymax = upper), 
+                width=.2,                    
+                position=position_dodge(0.9)) + 
+  ggtitle("Proportion of high income, by sex and marital status")
+```
+
+> The graph indicates that for married and divorced respondents, the proportion of high-income men is statistically significantly higher than the proportion of high-income women. Besides, although women and men both have higher proportions of higher income after getting married, the disparity increases a lot after getting married. 
+
+
+
+> Produce a bar chart with error bars to identity whether there is income inequality between men and women across different marital status. 
+
+```{r income gap between men and women, by marital status}
+marriage.income.gap <- nlsy.copy2 %>% 
+  group_by(marital_status) %>%
+  summarize(income.gap = mean(income[sex == "Male"], na.rm = TRUE) -
+              mean(income[sex == "Female"], na.rm = TRUE), 
+            lower = betterTTestErrorBars(income, sex)[2],
+            upper = betterTTestErrorBars(income, sex)[1],
+            is.significant = betterTTestErrorBars(income, sex)[3]) 
+
+marriage.income.gap <- marriage.income.gap %>% 
+  mutate(is.significant = recode_factor(is.significant, 
+                                        "1" = "Yes", 
+                                        "0" = "No"))
+kable(marriage.income.gap, format = "markdown")
+         
+ggplot(marriage.income.gap, 
+       aes(x = marital_status, y = income.gap, fill = is.significant)) + 
+  geom_bar(stat = "identity") +xlab("Marital Status") + 
+  ylab("Income gap($)") +
+  ggtitle("Income gap between men and women, by marital status") + 
+  guides() +
+  geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1) +
+  theme(text = element_text(size=12)) + 
+  theme(axis.text.x = element_text(angle = - 90, vjust = 0.5))
+```
+
+> For never-married, married, and divorced respondents, males have significantly higher income than females. Especially, the income gap of married respondents is significantly larger than never-married respondents.
+
+
+
+### d. Children
+
+> Firstly, use 'mutate()' and 'recode_factor' functions to recode `children_num` (numeric) to `children` (whether have children or not). Then we will investigate the proportion of high income by sex and whether have children or not. Filter out missing values in `income` and `children_num` to prevent producing a boxplot of "NA" group and other side effects of missing values.
+
+```{r proportion of high income, by sex and whether have children or not}
+nlsy.copy3 <- nlsy %>% filter(is.na(income) == FALSE, is.na(children_num) == FALSE)
+nlsy.copy3 <- nlsy.copy3 %>% mutate(children = recode_factor(children_num, 
+                                                "0" = "No", 
+                                                "1" = "Yes", 
+                                                "2" = "Yes", 
+                                                "3" = "Yes", 
+                                                "4" = "Yes", 
+                                                "5" = "Yes", 
+                                                "6" = "Yes",
+                                                "7" = "Yes",
+                                                "8" = "Yes",
+                                                "9" = "Yes",
+                                                "12" = "Yes"))
+
+
+child.income <- nlsy.copy3 %>% 
+  group_by(sex, children) %>% summarize(total = n(), high_income = sum(income > 50000),
+            prop = high_income / total, 
+            lower = prop.test(high_income, total)$conf.int[1],
+            upper = prop.test(high_income, total)$conf.int[2])
+
+kable(child.income, format = "markdown")
+
+ggplot(child.income, aes(x = children, y = prop, fill = sex)) + 
+  geom_bar(position="dodge", stat="identity") +
+  geom_errorbar(aes(ymin = lower, ymax = upper), 
+                width=.2,                    
+                position=position_dodge(0.9)) + 
+  ggtitle("Proportion of high income, by sex and whether have children or not")
+```
+
+> The boxplot indicates that the proportion of high-income men is higher than women, no matter whether they have children or not. And this difference is statistically significant for men and women who have children. Besides, although women and men will have higher proportions of high income after having children (probably due to older ages and higher seniority), the proportion difference between the two genders increases a lot.      
+
+
+
+
+> Produce a bar chart with error bars to identify whether there is income inequality between men and women depending on whether they have children or not. 
+
+```{r income gap between men and women, by whether have children or not}
+child.income.gap <- nlsy.copy3 %>% 
+  group_by(children) %>%
+  summarize(income.gap = mean(income[sex == "Male"], na.rm = TRUE) -
+              mean(income[sex == "Female"], na.rm = TRUE), 
+            lower = betterTTestErrorBars(income, sex)[2],
+            upper = betterTTestErrorBars(income, sex)[1],
+            is.significant = betterTTestErrorBars(income, sex)[3]) 
+
+child.income.gap <- child.income.gap %>% 
+  mutate(is.significant = recode_factor(is.significant, 
+                                        "1" = "Yes", 
+                                        "0" = "No"))
+         
+kable(child.income.gap, format = "markdown")
+
+ggplot(child.income.gap, 
+       aes(x = children, y = income.gap, fill = children)) + 
+  geom_bar(stat = "identity") +xlab("Children") + 
+  ylab("Income gap($)") +
+  ggtitle("Income gap between men and women, by whether have children or not") + 
+  guides() +
+  geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1) +
+  theme(text = element_text(size=12))
+```
+
+> The income inequality between men and women is more severe after having children. Whether having children or not may be one of the factors affecting income gap between men and women.
+
+
+
+### e. Personalities and Values
+
+In the next section, we are going to examine how males and females differ in their self evaluation of personalities and values, and how personalities and values affect income as well as income gap between males and females. 
+
+#### e-1. Personalities
+The two variables about personalities are `disorganized` (How much do you feel that disorganized describes you as a person? Where 1 means organized and 5 means disorganized) and `trustful` (How much do you feel that trustful describes you as a person? Where 1 means distrustful and 5 means trustful).
+
+```{r Distribution of disorganized}
+disorganized_char <- nlsy$disorganized
+nlsy$disorganized_char <- disorganized_char
+
+# Recode `1` and `2` to "Organized", `3` to "Neutral", and `4` and `5` to "Disorganized"
+nlsy <- nlsy %>% 
+  mutate(disorganized_char = recode_factor(disorganized_char,
+                                      `1` = "Organized",
+                                      `2` = "Organized",
+                                      `3` = "Neutral",
+                                      `4` = "Disorganized",
+                                      `5` = "Disorganized"))
+
+nlsy <- nlsy %>% 
+  mutate(disorganized_char = factor(disorganized_char,
+                               levels = c("Disorganized",
+                                          "Neutral",
+                                          "Organized")))
+
+disorganized.table <- table(sex = nlsy$sex, disorganized = nlsy$disorganized_char)
+disorganized.df.count <- as_tibble(disorganized.table)
+disorganized.df.count <- disorganized.df.count %>% 
+  group_by(sex) %>% 
+  mutate(totals = sum(n))
+
+disorganized.toplot <- disorganized.df.count %>% 
+  group_by(sex, disorganized) %>% 
+  summarize(prop = n/totals,
+            lower = prop.test(n, totals)$conf.int[1],
+            upper = prop.test(n, totals)$conf.int[2])
+
+kable(disorganized.toplot, format = "markdown")
+
+disorganized_plot <- ggplot(disorganized.toplot, aes(x = disorganized, y = prop, fill = sex)) +
+  geom_bar(position = 'dodge', stat = 'identity') +
+  geom_errorbar(aes(ymin = lower, ymax = upper),
+                width = .2,
+                position = position_dodge(0.9)) +
+  ggtitle("Proportion of disorganized or organized, by sex")
+
+disorganized_plot + scale_x_discrete(limits = c("Disorganized", "Neutral", "Organized"))
+
+```
+
+> For both males and females, more than half of them think themselves as organized, and less than 20% of them think themselves as disorganized. However, higher proportion of females think themselves as organized than males, and this proportion difference is statistically significant. 
+
+
+
+```{r how disorganized affect income}
+summary(lm(income ~ disorganized, data = nlsy))
+```
+
+> More organized is associated with higher income. This correlation is statistically significant.
+
+
+
+
+```{r how disorganized affect income gap}
+disorganized.conf <- nlsy %>%
+  filter(!is.na(disorganized_char)) %>% 
+  group_by(disorganized_char) %>%
+  summarize(income.gap = mean(income[sex == "Male"], na.rm = TRUE) -
+              mean(income[sex == "Female"], na.rm = TRUE),
+            upper = -t.test(income ~ sex)$conf.int[1],
+            lower = -t.test(income ~ sex)$conf.int[2],
+            is.significant = as.numeric(t.test(income ~ sex)$p.value < 0.05))
+
+
+disorganized.conf <- mutate(disorganized.conf,
+                        disorganized = reorder(disorganized_char, income.gap))
+
+kable(disorganized.conf, format = "markdown")
+
+
+ggplot(data = disorganized.conf, aes(x = disorganized_char, y = income.gap,
+                            fill = disorganized_char)) +
+  geom_bar(stat = "identity") +
+  xlab("Disorganized or organized") + 
+  ylab("Income gap($)") +
+  ggtitle("Income gap between men and women, by disorganized or not") + 
+  guides(fill = FALSE) +
+  geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1) +
+  theme(text = element_text(size=12)) 
+
+```
+
+> Whether the respondents think themselves as disorganized or organized, males have significantly higher income than females. But the income gaps do not seem to vary across groups.
+
+
+
+
+```{r Distribution of trustful}
+trustful_char <- nlsy$trustful
+nlsy$trustful_char <- trustful_char
+
+# recode `1` and `2` to "Not trustful", `3` to "Neutral", and `4` and `5` to "Trustful"
+nlsy <- nlsy %>% 
+  mutate(trustful_char = recode_factor(trustful_char,
+                                      `1` = "Not trustful",
+                                      `2` = "Not trustful",
+                                      `3` = "Neutral",
+                                      `4` = "Trustful",
+                                      `5` = "Trustful"))
+
+nlsy <- nlsy %>% 
+  mutate(trustful_char = factor(trustful_char,
+                           levels = c("Not trustful",
+                                      "Neutral",
+                                      "Trustful")))
+
+trustful <- table(sex = nlsy$sex, trustful = nlsy$trustful_char)
+trustful.df.count <- as_tibble(trustful)
+trustful.df.count <- trustful.df.count %>% 
+  group_by(sex) %>% 
+  mutate(totals = sum(n))
+
+trustful.toplot <- trustful.df.count %>% 
+  group_by(sex, trustful) %>% 
+  summarize(prop = n/totals,
+            lower = prop.test(n, totals)$conf.int[1],
+            upper = prop.test(n, totals)$conf.int[2])
+
+kable(trustful.toplot, format = "markdown")
+
+trustful_plot <- ggplot(trustful.toplot, aes(x = trustful, y = prop, fill = sex)) +
+  geom_bar(position = 'dodge', stat = 'identity') +
+  geom_errorbar(aes(ymin = lower, ymax = upper),
+                width = .2,
+                position = position_dodge(0.9)) +
+  ggtitle("Proportion of trustful or not, by sex")
+
+trustful_plot + scale_x_discrete(limits = c("Not trustful", "Neutral", "Trustful"))
+
+```
+
+> For both males and females, more than 85% of them think themselves as trustful. Slightly higher proportion of females think themselves as trustful than males, but this difference is not statistically significant.
+
+
+
+```{r how trustful affect income}
+summary(lm(income ~ trustful, data = nlsy))
+```
+
+> More trustful is associated with higher income. This correlation is statistically significant.
+
+
+
+```{r how trustful affect income gap}
+trustful.conf <- nlsy %>%
+  filter(!is.na(trustful_char)) %>% 
+  group_by(trustful_char) %>%
+  summarize(income.gap = mean(income[sex == "Male"], na.rm = TRUE) -
+              mean(income[sex == "Female"], na.rm = TRUE),
+            upper = -t.test(income ~ sex)$conf.int[1],
+            lower = -t.test(income ~ sex)$conf.int[2],
+            is.significant = as.numeric(t.test(income ~ sex)$p.value < 0.05))
+
+
+trustful.conf <- mutate(trustful.conf,
+                        trustful = reorder(trustful_char, income.gap))
+
+kable(trustful.conf, format = "markdown")
+
+
+ggplot(data = trustful.conf, aes(x = trustful_char, y = income.gap,
+                            fill = trustful_char)) +
+  geom_bar(stat = "identity") +
+  xlab("Trustful or not trustful") + 
+  ylab("Income gap($)") +
+  ggtitle("Income gap between men and women, by trustful or not") + 
+  guides(fill = FALSE) +
+  geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1) +
+  theme(text = element_text(size=12)) 
+```
+
+> For respondents who think themselves as not trustful or neutral, the confidence interval of income gaps between males and females both include an zero, indicating that the income gaps for the two groups are not statistically significant. However, for respondents who think themselves as trustful, the income gap is significant.
+
+
+
+
+#### e-2. Values
+
+> The two variables for values are `help_less_fortunate` (How much do you agree that people should be willing to help others who are less fortunate? Where 0 means strongly disagree and 4 means strongly agree) and `take_care_self` (How much do you agree that those in need have to learn to take care of themselves and not depend on others? Where 0 means strongly disagree and 4 means strongly agree).
+
+```{r Distribution in help_less_fortunate}
+help_less_fortunate_char <- nlsy$help_less_fortunate
+nlsy$help_less_fortunate_char <- help_less_fortunate_char
+
+# recode `0` and `1` to "Disagree", `2` to "Neutral", and `3` and `4` to "Agree"
+nlsy <- nlsy %>% 
+  mutate(help_less_fortunate_char = recode_factor(help_less_fortunate_char,
+                                      `0` = "Disagree",
+                                      `1` = "Disagree",
+                                      `2` = "Neutral",
+                                      `3` = "Agree",
+                                      `4` = "Agree"))
+
+nlsy <- nlsy %>% 
+  mutate(help_less_fortunate_char = factor(help_less_fortunate_char,
+                           levels = c("Disagree",
+                                      "Neutral",
+                                      "Agree")))
+
+help_less_fortunate <- table(sex = nlsy$sex, 
+                             help_less_fortunate = nlsy$help_less_fortunate_char)
+help_less_fortunate.df.count <- as_tibble(help_less_fortunate)
+help_less_fortunate.df.count <- help_less_fortunate.df.count %>% 
+  group_by(sex) %>% 
+  mutate(totals = sum(n))
+
+help_less_fortunate.toplot <- help_less_fortunate.df.count %>% 
+  group_by(sex, help_less_fortunate) %>% 
+  summarize(prop = n/totals,
+            lower = prop.test(n, totals)$conf.int[1],
+            upper = prop.test(n, totals)$conf.int[2])
+
+kable(help_less_fortunate.toplot, format = "markdown")
+
+help_plot <- ggplot(help_less_fortunate.toplot, 
+       aes(x = help_less_fortunate, y = prop, fill = sex)) +
+  geom_bar(position = 'dodge', stat = 'identity') +
+  geom_errorbar(aes(ymin = lower, ymax = upper),
+                width = .2,
+                position = position_dodge(0.9)) +
+  ggtitle("Proportion of whether agree to help less fortunate, by sex")
+
+help_plot + scale_x_discrete(limits = c("Disagree", "Neutral", "Agree"))
+
+```
+
+> For both males and females, very few of them disagree that people should help less fortunate people. But higher proportion of females agree than males. Though this difference is not statistically significant. 
+
+
+
+
+```{r how help_less_fortunate affect income}
+summary(lm(income ~ help_less_fortunate, data = nlsy))
+```
+
+> The correlation between how much a respondent agree to the statement that people should help less fortunate and income is not statistically significant.
+
+
+
+```{r how help_less_fortunate affect income gap}
+help_less_fortunate.conf <- nlsy %>%
+  filter(!is.na(help_less_fortunate_char)) %>% 
+  group_by(help_less_fortunate_char) %>%
+  summarize(income.gap = mean(income[sex == "Male"], na.rm = TRUE) -
+              mean(income[sex == "Female"], na.rm = TRUE),
+            upper = -t.test(income ~ sex)$conf.int[1],
+            lower = -t.test(income ~ sex)$conf.int[2],
+            is.significant = as.numeric(t.test(income ~ sex)$p.value < 0.05))
+
+
+help_less_fortunate.conf <- mutate(help_less_fortunate.conf,
+                        help_less_fortunate = reorder(help_less_fortunate_char, income.gap))
+
+kable(help_less_fortunate.conf, format = "markdown")
+
+ggplot(data = help_less_fortunate.conf, aes(x = help_less_fortunate_char, y = income.gap,
+                            fill = help_less_fortunate)) +
+  geom_bar(stat = "identity") +
+  ylab("Income gap($)") +
+  ggtitle("Income gap between men and women, by whether agree help less fortunate") + 
+  guides(fill = FALSE) +
+  geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1) +
+  theme(text = element_text(size=12)) 
+```
+
+> Whether the respondents agree that people should help less fortunate people, males have significantly higher income than females. Especially, for respondents who disagree with this statement, the income gap is significantly bigger than respondents who agree. 
+
+
+
+
+```{r Distribution & sex difference in take_care_self}
+take_care_self_char <- nlsy$take_care_self
+nlsy$take_care_self_char <- take_care_self_char
+
+# recode `0` and `1` to "Disagree", `2` to "Neutral", and `3` and `4` to "Agree"
+nlsy <- nlsy %>% 
+  mutate(take_care_self_char = recode_factor(take_care_self_char,
+                                      `0` = "Disagree",
+                                      `1` = "Disagree",
+                                      `2` = "Neutral",
+                                      `3` = "Agree",
+                                      `4` = "Agree"))
+
+nlsy <- nlsy %>% 
+  mutate(take_care_self_char = factor(take_care_self_char,
+                           levels = c("Disagree",
+                                      "Neutral",
+                                      "Agree")))
+
+take_care_self <- table(sex = nlsy$sex, 
+                              take_care_self = nlsy$ take_care_self_char)
+take_care_self.df.count <- as_tibble(take_care_self)
+take_care_self.df.count <- take_care_self.df.count %>% 
+  group_by(sex) %>% 
+  mutate(totals = sum(n))
+
+take_care_self.toplot <- take_care_self.df.count %>% 
+  group_by(sex, take_care_self) %>% 
+  summarize(prop = n/totals,
+            lower = prop.test(n, totals)$conf.int[1],
+            upper = prop.test(n, totals)$conf.int[2])
+
+kable(take_care_self.toplot, format = "markdown")
+
+takecare_plot <- ggplot(take_care_self.toplot, 
+       aes(x = take_care_self, y = prop, fill = sex)) +
+  geom_bar(position = 'dodge', stat = 'identity') +
+  geom_errorbar(aes(ymin = lower, ymax = upper),
+                width = .2,
+                position = position_dodge(0.9)) +
+  ggtitle("Proportion of whether agree that people should take care of themselves")
+
+takecare_plot + scale_x_discrete(limits = c("Disagree", "Neutral", "Agree"))
+
+```
+
+> For both males and females, more than half of them agree that "those in need have to learn to take care of themselves and not depend on others". However, significantly higher proportion of males agree to this statement than females.
+
+
+
+```{r how take_care_self affect income}
+summary(lm(income ~ take_care_self, data = nlsy))
+```
+
+> The correlation between how much a respondent agree to the statement that "those in need have to learn to take care of themselves and not depend on others" and income is not statistically significant.
+
+
+
+```{r how take_care_self affect income gap}
+take_care_self.conf <- nlsy %>%
+  filter(!is.na(take_care_self_char)) %>% 
+  group_by(take_care_self_char) %>%
+  summarize(income.gap = mean(income[sex == "Male"], na.rm = TRUE) -
+              mean(income[sex == "Female"], na.rm = TRUE),
+            upper = -t.test(income ~ sex)$conf.int[1],
+            lower = -t.test(income ~ sex)$conf.int[2],
+            is.significant = as.numeric(t.test(income ~ sex)$p.value < 0.05))
+
+
+take_care_self.conf <- mutate(take_care_self.conf,
+                        take_care_self = reorder(take_care_self_char, income.gap))
+
+kable(take_care_self.conf, format = "markdown")
+
+ggplot(data = take_care_self.conf, aes(x = take_care_self_char, y = income.gap,
+                            fill = take_care_self_char)) +
+  geom_bar(stat = "identity") +
+  ylab("Income gap($)") +
+  ggtitle("Income gap between men and women, by whether agree people should take care of themselves") + 
+  guides(fill = FALSE) +
+  geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1) +
+  theme(text = element_text(size=12)) 
+```
+
+> For respondents who disagree or are neutral about the statement that "those in need have to learn to take care of themselves and not depend on others", the confidence interval of income gaps between males and females both include an zero, indicating that the income gaps for the two groups are not statistically significant. However, for respondents who agree that people should take care of themselves, the income gap is significant. 
+
+
+
+
+### f. Industries
+
+> We believe that different industries have different income structures. Also, some industries have some preferences for a specific sex. So we want to see whether the industry would be a factor that needs to be assessed.
+
+> We first construct plots showing proportion of people in different industries for men and women. Filter out missing values in `income` and `industry` to prevent producing a boxplot of "NA" group.
+
+```{r}
+nlsy.indu <- nlsy %>% 
+  filter(is.na(income) == FALSE,
+         is.na(industry) == FALSE)
+
+nlsy.indu$industry[nlsy.indu$industry >= 170 & nlsy.indu$industry <= 290] <- 'AGRICULTURE'
+nlsy.indu$industry[nlsy.indu$industry >= 370 & nlsy.indu$industry <= 490] <- 'MINING'
+nlsy.indu$industry[nlsy.indu$industry >= 570 & nlsy.indu$industry <= 690] <- 'UTILITIES'
+nlsy.indu$industry[nlsy.indu$industry == 770] <- 'CONSTRUCTION'
+nlsy.indu$industry[nlsy.indu$industry >= 1070 & nlsy.indu$industry <= 3990] <- 'MANUFACTURING'
+nlsy.indu$industry[nlsy.indu$industry >= 4070 & nlsy.indu$industry <= 4590] <- 'WHOLESALE TRADE'
+nlsy.indu$industry[nlsy.indu$industry >= 4670 & nlsy.indu$industry <= 5790] <- 'RETAIL TRADE'
+nlsy.indu$industry[nlsy.indu$industry == 5890] <- 'ARTS'
+nlsy.indu$industry[nlsy.indu$industry >= 6070 & nlsy.indu$industry <= 6390] <- 'TRANSPORTATION'
+nlsy.indu$industry[nlsy.indu$industry >= 6470 & nlsy.indu$industry <= 6780] <- 'INFORMATION'
+nlsy.indu$industry[nlsy.indu$industry >= 6870 & nlsy.indu$industry <= 7190] <- 'FINANCE'
+nlsy.indu$industry[nlsy.indu$industry >= 7270 & nlsy.indu$industry <= 9290] <- 'SERVICES'
+nlsy.indu$industry[nlsy.indu$industry >= 9370 & nlsy.indu$industry <= 9590] <- 'PUBLIC ADMINISTRATION'
+nlsy.indu$industry[nlsy.indu$industry >= 9670 & nlsy.indu$industry <= 9890] <- 'MILITARY'
+nlsy.indu$industry[nlsy.indu$industry >= 9950 & nlsy.indu$industry <= 9990] <- 'ACS SPECIAL CODES'
+
+industry.table <- table(sex = nlsy.indu$sex, industry = nlsy.indu$industry)
+industry.count <- as_tibble(industry.table)
+industry.df.count <- industry.count %>% 
+  group_by(sex) %>% 
+  mutate(totals = sum(n))
+
+kable(industry.df.count, format = "markdown")
+
+industry.toplot <- industry.df.count %>% 
+  group_by(industry, sex) %>% 
+  summarize(prop = n/totals,
+            lower = prop.test(n, totals)$conf.int[1],
+            upper = prop.test(n, totals)$conf.int[2])
+
+kable(industry.toplot, format = "markdown")
+
+ggplot(industry.toplot, aes(x = industry, y = prop, fill = sex)) +
+  geom_bar(position = 'dodge', stat = 'identity') +
+  theme(axis.text.x = element_text(angle = - 90, vjust = 0.5)) + 
+  geom_errorbar(aes(ymin = lower, ymax = upper),
+                width = .2,
+                position = position_dodge(0.9)) + 
+  ggtitle("Proportion of people in different industries, by sex")
+```
+
+> From the result we can see that some industries have a significantly different propotion of men and women. For example, significantly higher proportion of females work in `services` and `retail trade`. While significantly higher proportion of males work in `construction`, `manufacturing`, `mining`, and `utilities`.
+
+
+
+
+> We want to further investigate the proportion of high income for different industries by sex.
+
+```{r proportion of high income, by occupation type}
+indu.income <- nlsy.indu %>% 
+  group_by(sex, industry) %>% summarize(total = n(), high_income = sum(income > 50000),
+            prop = high_income / total, 
+            lower = prop.test(high_income, total)$conf.int[1],
+            upper = prop.test(high_income, total)$conf.int[2])
+
+kable(indu.income, format = "markdown")
+
+ggplot(indu.income, aes(x = industry, y = prop, fill = sex)) + 
+  geom_bar(position="dodge", stat="identity") +
+  geom_errorbar(aes(ymin = lower, ymax = upper), 
+                width=.2,                    
+                position=position_dodge(0.9)) + 
+  theme(axis.text.x = element_text(angle = - 90, vjust = 0.5)) +
+  ggtitle("Proportion of high income, by industry")
+```
+
+> We can see here that in some certain industries, the difference of high income proportion between men and women are significant, like construction, finance, public administration, services, and utilities. One thing worths noting is that the military industry has no female respondent, so when doing the investigation on income gap, we need to delete the military industry. 
+
+
+
+
+> Produce a graph of income gap between men and women across industries to investigate whether industy is one of the factors affecting income gap. 
+
+```{r income gap between men and women, by industry}
+indu.conf <- nlsy.indu %>% filter(industry != "MILITARY") %>% 
+  group_by(industry) %>%
+  summarize(income.gap = mean(income[sex == "Male"], na.rm = TRUE) -
+              mean(income[sex == "Female"], na.rm = TRUE), 
+            lower = betterTTestErrorBars(income, sex)[2],
+            upper = betterTTestErrorBars(income, sex)[1],
+            is.significant = betterTTestErrorBars(income, sex)[3]) 
+  
+indu.conf <- indu.conf %>% 
+  mutate(is.significant = recode_factor(is.significant, 
+                                        "1" = "Yes", 
+                                        "0" = "No"))
+kable(indu.conf, format = "markdown")
+
+ggplot(data = indu.conf, aes(x = industry, y = income.gap,
+                            fill = industry)) +
+  geom_bar(stat = "identity") +
+  ylab("Income gap($)") +
+  ggtitle("Income gap between men and women, by industry") + 
+  guides(fill = FALSE) +
+  geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1) +
+  theme(text = element_text(size=12))  + 
+  theme(axis.text.x = element_text(angle = - 90, vjust = 0.5))
+  
+```
+
+> From the result we can see, males have statistically significantly higher income than females in all industries. But the income gap seems not to vary significantly across industries. 
+
+
+
+
+
+### g. Household Composition
+
+> We hypothesized that household composition has a significant influence on the growth of people, and may therefore affect the income. So we want to study the influence of family composition. Similarly, filter out missing values in `income` and `household_composition` to prevent producing a boxplot of "NA" group.
+
+```{r proportion of high income, by household composition}
+nlsy.hhcurrent <- nlsy %>% 
+  filter(is.na(income) == FALSE,
+         is.na(household_composition) == FALSE)
+
+hhcurrent.income <- nlsy.hhcurrent %>% 
+  group_by(sex, household_composition ) %>% summarize(total = n(), high_income = sum(income > 50000),
+            prop = high_income / total, 
+            lower = prop.test(high_income, total)$conf.int[1],
+            upper = prop.test(high_income, total)$conf.int[2])
+
+kable(hhcurrent.income, format = "markdown")
+
+ggplot(hhcurrent.income, aes(x = household_composition , y = prop, fill = sex)) + 
+  geom_bar(position="dodge", stat="identity") +
+  geom_errorbar(aes(ymin = lower, ymax = upper), 
+                width=.2,                    
+                position=position_dodge(0.9)) + 
+  theme(axis.text.x = element_text(angle = - 90, vjust = 0.5)) +
+  ggtitle("Proportion of high income, by household composition")
+```
+
+> We can see that in all kinds of households, males have higher proportions of high income, and in households of `both biological parents`, `two parents, biological mother`, and `biological mother only`, these proportion differences are statistically significant.
+
+
+
+
+> Produce a graph of income gap between men and women by household composition to investigate whether household composition is one of the factors affecting income gap. 
+
+```{r income gap between men and women, by household composition}
+hhcurrent.conf <- nlsy.hhcurrent %>%
+  group_by(household_composition ) %>%
+  summarize(income.gap = mean(income[sex == "Male"], na.rm = TRUE) -
+              mean(income[sex == "Female"], na.rm = TRUE),
+            upper = -t.test(income ~ sex)$conf.int[1],
+            lower = -t.test(income ~ sex)$conf.int[2],
+            is.significant = as.numeric(t.test(income ~ sex)$p.value < 0.05))
+
+kable(hhcurrent.conf, format = "markdown")
+
+ggplot(data = hhcurrent.conf, aes(x = household_composition, y = income.gap,
+                            fill = household_composition)) +
+  geom_bar(stat = "identity") +
+  ylab("Income gap($)") +
+  ggtitle("Income gap between men and women, by the people's household composition") + 
+  guides(fill = FALSE) +
+  geom_errorbar(aes(ymax = upper, ymin = lower), width = 0.1, size = 1) +
+  theme(axis.text.x = element_text(angle = - 90, vjust = 0.5)) +
+  theme(text = element_text(size=12)) 
+```
+
+> From the result we can see, for household composition of `both biological parents`, `two parents, biological mother`, `two parents, biological father`, `biological mother only`, and `biological father only`, males have significantly higher income than females. But the income gaps don't seem to vary across different households.
+
+
+
+
+
+
+## Part II: Linear Model
+
+### a. Data Processing
+
+> To ensure the sample sizes of different columns and different regression models are the same, we filter out missing values of all the variables discussed above. 
+
+```{r}
+nlsy.copy5 <- nlsy.indu %>% filter(is.na(income) == FALSE, 
+                              is.na(highest_degree) == FALSE, 
+                              is.na(marital_status) == FALSE,
+                              is.na(children_num) == FALSE, 
+                              is.na(disorganized_char) == FALSE, 
+                              is.na(industry) == FALSE, 
+                              is.na(household_composition) == FALSE)
+
+nlsy.copy5 <- nlsy.copy5 %>% mutate(children = recode_factor(children_num, 
+                                                "0" = "No", 
+                                                "1" = "Yes", 
+                                                "2" = "Yes", 
+                                                "3" = "Yes", 
+                                                "4" = "Yes", 
+                                                "5" = "Yes", 
+                                                "6" = "Yes",
+                                                "7" = "Yes",
+                                                "8" = "Yes",
+                                                "9" = "Yes",
+                                                "12" = "Yes"))
+```
+
+
+
+### b. Regression without interaction terms
+
+> In this section, we are going to run regressions on the variables discussed above. Since the relationship between `help_less_fortunate` and `take_care_self` are not statistically significantly associated with `income`, we are not goint to add those two variables in the regression model. Also, if holding `highest_degree` constant, the relationship between `trustful` and `income` became insignificant. Therefore, we will only include `disorganized` among personalities and values variables.
+
+```{r nlsy.lm}
+nlsy.lm <- lm(income ~ sex + highest_degree + marital_status + children + disorganized_char + industry + household_composition, data = nlsy.copy5)
+
+summary(nlsy.lm)
+kable(coef(summary(nlsy.lm)), digits = c(0, 0, 2, 4))
+```
+
+> From the first regression model, we see that the coefficients for `household_composition` became not statistically significant. Hence, we are going to remove this variable, and see whether that would significantly affect the model performance.
+
+
+
+```{r removing `household_composition`}
+anova(update(nlsy.lm, . ~ . - household_composition), nlsy.lm)
+```
+
+> From the anova test, we see that `household_composition` is not a statistically significant factor in the model. Therefore, we are going to remove this variable. 
+
+
+
+> From the first model, we also see that some coefficients for the variable `industry` are not statistically significant. So next, we are going to examine whether removing `industry` will significantly affect the model.
+
+```{r removing `industry`}
+anova(update(nlsy.lm, . ~ . - household_composition), 
+      update(nlsy.lm, . ~ . - household_composition - industry))
+```
+
+> `industry` is a statistically significant factor in the model. It is unlikely that the improvement in fit when the add of the `industry` variable is simply due to random fluctuations in the data.  Thus it is important to consider `industry` when modeling `income`.
+
+
+
+>From the first model, we see that the coefficient for `disorganized` is significant at the 0.05 level. But we will examine whether `disorganized` is a significant factor in the model.
+
+```{r}
+anova(update(nlsy.lm, . ~ . - household_composition - disorganized_char), nlsy.lm)
+```
+
+> `disorganized` is not a statistically significant factor in the model. Therefore, we are going to remove this variable. 
+
+
+
+> Next, we will examine `children`.
+
+```{r removing `children`}
+anova(update(nlsy.lm, . ~ . - household_composition - disorganized_char), 
+      update(nlsy.lm, . ~ . - household_composition - disorganized_char - children))
+```
+
+> `children` is a statistically significant factor in the model.It is important to consider `children` when modeling `income`.
+
+
+
+> Next, we will examine `marital_status`.
+
+```{r removing `marital_status`}
+anova(update(nlsy.lm, . ~ . - household_composition - disorganized_char), 
+      update(nlsy.lm, . ~ . - household_composition - disorganized_char - marital_status))
+```
+
+> `marital_status` is a statistically significant factor in the model.It is important to consider `marital_status` when modeling `income`.
+
+
+
+> Next, we will examine `highest_degree`.
+
+```{r removing `highest_degree`}
+anova(update(nlsy.lm, . ~ . - household_composition - disorganized_char), 
+      update(nlsy.lm, . ~ . - household_composition - disorganized_char - highest_degree))
+```
+
+> `highest_degree` is a statistically significant factor in the model. It is important to consider `highest_degree` when modeling `income`.
+
+
+
+> Now that we've examined all the variables' influence on the model. We conclude the second linear model as the following:
+
+```{r}
+nlsy.lm.select <- lm(income ~ sex + highest_degree + marital_status + children + industry, data = nlsy.copy5)
+
+summary(nlsy.lm.select)
+kable(coef(summary(nlsy.lm.select)), digits = c(0, 0, 2, 4))
+```
+
+
+
+
+### c. Regression with interaction terms
+
+> In this section, we will add interaction terms to the linear model. As the previous analysis shows, the income gap between males and females is significantly larger for respondents who have children. So we will first examine the interaction between `sex` and `children`.
+
+```{r adding interaction between `sex` and `children`}
+nlsy.lm.child.interact <- update(nlsy.lm.select, . ~ . + sex * children)
+summary(nlsy.lm.child.interact)
+kable(coef(summary(nlsy.lm.child.interact)), digits = c(0, 0, 2, 4))
+```
+
+>  We see that when the interaction term between `sex` and `children` is added, the coefficients of either `sex` or `children` become not significant, but the coefficient of the interaction of the two factors is statistically significant. The income gap between males and females increases $13625.1 for respondents who have children. 
+
+
+
+>Next, we will examine whether the interaction term between `sex` and `children` is a significant factor in the linear model.
+
+```{r}
+anova(nlsy.lm, nlsy.lm.child.interact)
+```
+
+> This p-value turns out to not be statistically significant.  So even though the coefficient of `sexMale:childrenYes` is statistically significant, we don't have enough evidence to conclude that the interaction term is providing significant additional explanatory power over the simpler model.
+
+
+
+> As the previous analysis shows, the income gap between males and females is significantly larger among married respondents than never-married or divorced respondents. So next we will examine the interaction effect of `sex` and `marital_status`.
+
+```{r}
+nlsy.lm.mari.interact <- update(nlsy.lm.select, . ~ . + sex * marital_status)
+summary(nlsy.lm.mari.interact)
+kable(coef(summary(nlsy.lm.mari.interact)), digits = c(0, 0, 2, 4))
+```
+
+> We see that the interaction between `sex` and `married` is statistically significant. The income gap between males and females increases $12427.7 for married respondents than never-married respondents.
+
+
+
+> As the coefficients for other interaction terms are not statistically significant, we are going to see whether the interaction between `sex` and `marrital_status` will significantly affect the model.
+
+```{r examine interaction `sex` and `marrital_status`}
+anova(nlsy.lm.select, nlsy.lm.mari.interact)
+```
+
+> The interaction between `sex` and `marrital_status` is a statistically significant factor in the model. It is important to consider this interaction term.
+
+
+
+> From the previous analysis, we see that the income gap between males and females is statistically significantly higher for respondents with a Bachelor's degree than respondents with Associate/Junior degree or High School degree. Therefore, in the next section, we will examine the interaction term between `sex` and `highest_degree`. 
+
+```{r interaction of `sex` and `highest_degree`}
+nlsy.lm.edu.interact <- update(nlsy.lm.select, . ~ . + sex * highest_degree)
+summary(nlsy.lm.edu.interact)
+kable(coef(summary(nlsy.lm.edu.interact)), digits = c(0, 0, 2, 4))
+```
+
+> The income gap between males and females increases $21264 for respondents with a Master's degree than respondents with no degree. Also, the income gap increases $39371 for respondents with a Professional degree than respondents with no degree.
+
+
+
+> We are going to see whether the interaction between `sex` and `highest_degree` will significantly affect the model.
+
+```{r}
+anova(nlsy.lm.select, nlsy.lm.edu.interact)
+```
+
+> The interaction between `sex` and `highest_degree` is a statistically significant factor in the model. It is important to consider this interaction term.
+
+> From the previous analysis, we didn't see statistically significantly different income gaps for different industries. Hence, we do not consider the interaction between `sex` and `industry` in the linear model.
+
+> In conclusion, it's important to consider the interation between `sex` and `highest_degree` and the interaction between `sex` and `marital_status`. The corresponding models are `nlsy.lm.edu.interact` and `nlsy.lm.mari.interact`.
+
+
+
+### d. Dealing with `income`
+
+> In this section, we are going to diagnose the two interaction models.
+
+```{r diagnostic plots of nlsy.lm.edu.interact}
+plot(nlsy.lm.edu.interact)
+```
+
+> There is clear non-linearity, non-normal distribution, and heteroscedasticity of the model `nlsy.lm.edu.interact`. There are also a few outliers.
+
+
+
+```{r diagnostic plots of nlsy.lm.mari.interact}
+plot(nlsy.lm.mari.interact)
+```
+
+> Similarly, there is clear non-linearity, non-normal distribution, and heteroscedasticity of the model `nlsy.lm.mari.interact`. There are also a few outliers.
+
+
+
+> To solve the issues of non-linearity, non-normal distribution, heteroscedasticity and outliers, we are considering removing the `r n.topcoded` top-coded respondents who has the highest income and doing a log transformation for the income:
+
+```{r}
+nlsy.copy6 <- nlsy.copy5 %>% filter(!(nlsy.copy5$income == max(income, na.rm = TRUE)))
+qplot(nlsy.copy6$income)
+
+nlsy.copy6$log_income <- log(nlsy.copy6$income)
+qplot(nlsy.copy6$log_income)
+```
+
+
+
+```{r new nlsy.lm.edu.interact2}
+nlsy.lm.edu.interact2 <- lm(log_income ~ sex + highest_degree + marital_status + children + industry + sex * highest_degree, data = nlsy.copy6)
+
+plot(nlsy.lm.edu.interact2)
+```
+
+> Comparing with the previous model, the non-linearity problem is solved, and the outliers issue is improved. However, the residuals still appear non-normal, and there is a decreasing trend in residual variance. 
+
+
+
+```{r new nlsy.lm.mari.interact2}
+nlsy.lm.mari.interact2 <- lm(log_income ~ sex + highest_degree + marital_status + children + industry + sex * marital_status, data = nlsy.copy6)
+
+plot(nlsy.lm.mari.interact2)
+```
+
+> Similarly, the non-linearity problem is solved and the outliers issue is improved. However, the residuals still appear non-normal, and there is a decreasing trend in residual variance. 
+
+
+
+
+
+### e. Discussion 
+
+#### e-1. Main Findings
+
+> In the next section, we will interpret the final two models: `nlsy.lm.edu.interact2` and `nlsy.lm.mari.interact2`.
+
+> Firstly, we will interpret the `nlsy.lm.edu.interact2` model.
+
+```{r interpret nlsy.lm.edu.interact2}
+summary(nlsy.lm.edu.interact2)
+kable(coef(summary(nlsy.lm.edu.interact2)), digits = c(3, 3, 2, 4))
+```
+
+> Holding other variables constant, males have 66.45% higher income than females on average. Generally, higher education level is associated with higher income. Married and divoced status are associated with higher income than never-married. And holding other variables constant, having children is associated with 27.79% higher income than no children on average. The `retail trade` industry seems to have the lowest average income, while the `military` industry seems to have the highest average income. In terms of the interaction effect of `sex:highest_degree`, the only statistically significant term is the coefficient of `sexMale:highest_degreeAssociate/Junior`, indicating that for respondents with Associate/Junior degree, the income gap between males and females decreases by 41.25% from respondents with no degree.
+
+
+
+> Next, we will interpret the  `nlsy.lm.mari.interact2` model:
+
+```{r interpret nlsy.lm.mari.interact2}
+summary(nlsy.lm.mari.interact2)
+kable(coef(summary(nlsy.lm.mari.interact2)), digits = c(3, 3, 2, 4))
+```
+
+> Holding other variables constant, males have 35.80% higher income than females on average. This income gap estimation seems to be a lot smaller than the `nlsy.lm.edu.interact2` model estimation. Generally, higher education level is associated with higher income. The coefficients of marital status became not significant. Holding other variables constant, having children is associated with 22.69% higher income than no children on average. In terms of the interaction effect of `sex:marital_status`, the only statistically significant term is the coefficient of `sexMale:marital_statusMarried`, indicating that for married respondents, the income gap between males and females increases by 17.77% from respondents who are not married.
+
+> Both the descriptive statistics and the regression models show that for respondents who are married or with children, the income gaps between men and women are larger than respondents who are not married or without children. They also show that there is no clear trend that as education level increases, the incom gap increases or decreases, although the interaction term is statistically significant. 
+
+> Although in the descriptive statistics section, we find a positive relationship between how much respondents evaluate themselves as `organized` or `trustful` with `income`, after controlling for other varibales, these relationships became not statistically significant.
+
+
+
+
+#### e-2. Limitations and Confidence in Analysis
+
+##### Limitations
+
+> ***Non-normal distribution of residuals***
+The Normal QQ plot indicates that the residuals are not normally distributed, but since we have a very large sample size, this may not cause a very serious problem.
+
+> ***Heteroscedasticity***
+There is a slightly decreasing trend in residual variance, so the standard errors may be biased. Because the standard error is central to conducting significance tests and calculating confidence intervals, biased standard errors may lead to incorrect conclusions about the significance of the regression coefficients. 
+
+> ***Military industry deleted***
+Since there's no female respondent in the military industry, we removed this industry in order to perform t-test on income gap between men and women. This is the limitation of the sampling of this study. We were unable to examine the income inequality between men and women in military. 
+
+
+
+##### Confidence in Analysis
+
+> We have moderate confidence in our findings. The sample size is big even after removing missing values. We used modified t-tests so that they won't be biased by counts less than 5. There is no non-linearity or collinearity problem of our linear model. However, the heteroscedasticity and outlier issues exist. 
+
+> If policy makers would refer to our analysis, we would recommend not to omit the effect of a variable only because the regression coefficient is not statistically significant, due to the limitations of the sampling and the regression models discussed before and some other possible omitted variable bias. 
+
+
+
